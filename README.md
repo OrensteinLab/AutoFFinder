@@ -1,5 +1,3 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10115908.svg)](https://doi.org/10.5281/zenodo.10115908)
-
 # AutoFFinder
 
 AutoFFinder is a runtime-reconfigurable hardware-software co-design for multi-gRNA CRISPR/Cas9 off-target search:
@@ -115,9 +113,3 @@ PostAutoFFinder writes one CSV file (`<Output prefix>.csv`) with columns:
 - `AlignedText`
 - `#Mismatches`
 - `#Bulges`
-
-## Reference
-
-Code for AutoFFinder is publicly available at:
-
-- https://github.com/OrensteinLab/AutoFFinder
