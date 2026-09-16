@@ -303,10 +303,9 @@ When binary mode is used, PostAutoFFinder prints separate timings for:
 ### Live FPGA adapter (advanced)
 
 The `fpga` candidate source invokes ReLev through the `relev_jni` native
-interface. A fresh clone includes an older prebuilt `automata.hw.xclbin`, but
-that image does not contain the repeated-invocation reset needed when Java
-processes successive chromosomes. **Rebuild the FPGA image from source before
-using this mode.**
+interface. A prebuilt `.xclbin` is intentionally not included because FPGA
+images are platform-specific. Build the FPGA image from source before using
+this mode.
 
 From the repository root, after loading the Vitis and XRT environments:
 
@@ -318,8 +317,9 @@ make -C ReLev/fpga jni
 ```
 
 These commands create the updated `ReLev/fpga/automata.hw.xclbin` and
-`ReLev/fpga/librelev_jni.so`. Building only the JNI library is insufficient
-because the checked-in bitstream was generated from the original kernel.
+`ReLev/fpga/librelev_jni.so`. Building only the JNI library is insufficient;
+the `.xclbin` containing the repeated-invocation reset and NGG wildcard logic
+must also be generated.
 
 Then run PostAutoFFinder with absolute paths to both artifacts:
 
@@ -357,8 +357,10 @@ java \
   lines. The included `sgRNAs.txt` satisfies this requirement.
 - **Guide encoding:** ReLev reads the first 20 symbols of every guide and
   appends the SpCas9 PAM `NGG`; the FPGA automaton treats `N` as matching any
-  nucleotide. Supporting another PAM requires changing the ReLev host/kernel
-  configuration and rebuilding.
+  `A`, `C`, `G`, or `T`. A reference-genome `N` does not satisfy this wildcard
+  and, in the current automaton, interrupts the active match path rather than
+  being counted as one mismatch. Supporting another PAM requires changing the
+  ReLev host/kernel configuration and rebuilding.
 - **Edit distance:** The FPGA implementation accepts thresholds from 0 through
   6.
 - **Execution model:** AutoFFinder creates forward and reverse-complement
@@ -374,9 +376,8 @@ java \
 - ReLev also processes the zero padding used to align each input to a 64-byte
   transfer. The JNI adapter does not currently remove candidates produced only
   from this trailing padding.
-- This JNI path has not been executed in this repository checkout because no
-  U280/XRT/Vitis environment is available here. It should be validated once on
-  the target U280 system before relying on a full-genome result.
+- Validate a newly generated `.xclbin` once on the target U280 system before
+  relying on a full-genome result.
 
 See [`ReLev/README.md`](ReLev/README.md) for the ReLev-specific build details.
 Omit `relev.nativeLibrary` only when `librelev_jni` is already discoverable
