@@ -318,8 +318,8 @@ make -C ReLev/fpga jni
 
 These commands create the updated `ReLev/fpga/automata.hw.xclbin` and
 `ReLev/fpga/librelev_jni.so`. Building only the JNI library is insufficient;
-the `.xclbin` containing the repeated-invocation reset and NGG wildcard logic
-must also be generated.
+the `.xclbin` containing the repeated-invocation reset must also be generated.
+The original ReLev automaton already implements the NGG wildcard.
 
 Then run PostAutoFFinder with absolute paths to both artifacts:
 
@@ -356,9 +356,10 @@ java \
 - **Guide count:** The current FPGA image requires exactly 128 non-empty guide
   lines. The included `sgRNAs.txt` satisfies this requirement.
 - **Guide encoding:** ReLev reads the first 20 symbols of every guide and
-  appends the SpCas9 PAM `NGG`; the FPGA automaton treats `N` as matching any
-  `A`, `C`, `G`, or `T`. A reference-genome `N` does not satisfy this wildcard
-  and instead consumes one edit through the automaton's mismatch transitions.
+  stores a `TGG` suffix in the pattern buffer. Independently of that stored
+  suffix, the original FPGA automaton hard-codes the SpCas9 PAM as `[ACGT]GG`.
+  A reference-genome `N` does not satisfy this wildcard and is not accepted by
+  the original automaton's mismatch predicates.
   Supporting another PAM requires changing the ReLev host/kernel configuration
   and rebuilding.
 - **Edit distance:** The FPGA implementation accepts thresholds from 0 through
