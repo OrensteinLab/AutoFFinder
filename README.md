@@ -5,6 +5,8 @@ multi-guide CRISPR/Cas9 off-target search:
 
 1. **ReLev** scans a reference genome on an FPGA with parallel Levenshtein
    automata and reports candidate end positions.
+   **Stomata** can alternatively generate compatible candidate files on an
+   NVIDIA GPU with Myers' bit-parallel algorithm.
 2. **PostAutoFFinder** validates those candidates on the CPU, reconstructs exact
    alignments, and enforces separate mismatch, bulge, PAM, and total-edit
    constraints.
@@ -15,6 +17,9 @@ The two stages are stored in this repository but are built and run separately.
 
 - `ReLev/`: FPGA overlay and host code for candidate generation. This directory
   is a Git submodule.
+- `Stomata/`: Stomata v0.11.0 source with the modifications used to generate
+  AutoFFinder-compatible stage-1 candidates, benchmark guide sets, and the
+  stage-1 benchmark runner.
 - `PostAutoFFinder/`: Java CPU post-processing implementation.
 - `sgRNAs.txt`: example guide file.
 
@@ -38,6 +43,8 @@ git submodule update --init --recursive
 - Java 17 or later for PostAutoFFinder
 - The ReLev prerequisites documented in
   [`ReLev/README.md`](ReLev/README.md) for FPGA candidate generation
+- CUDA 11.8+, CMake 3.20+, and a C++17 compiler when using the optional Stomata
+  stage 1; see [`Stomata/README.md`](Stomata/README.md)
 
 No external Java libraries are required.
 
@@ -64,11 +71,11 @@ text coordinates and the mismatch and bulge counts, avoiding repeated
 evaluation of the same subproblem. Thread-local primitive workspaces reduce
 allocation and garbage-collection overhead.
 
-For configurations allowing at most one bulge, an enabled-by-default fast path
-first evaluates mismatch-only and single-bulge cases in linear time. It falls
+For configurations allowing at most one bulge, a fast path first evaluates
+mismatch-only and single-bulge cases in linear time. It falls
 back to the memoized algorithm whenever the shortcut cannot preserve the
-general algorithm's result. Pass the optional final argument `true` to disable
-this fast path and always use dynamic programming plus memoized traceback.
+general algorithm's result. This validated fast path is always used when
+applicable.
 
 ## Build PostAutoFFinder
 
@@ -90,8 +97,7 @@ java -cp bin PostAutoFFinder.AutoOffTargetSearchAlign \
   <threads> \
   <best-in-window> <best-window-size> \
   <PAM> <allow-PAM-edits> \
-  <candidate-source-path> \
-  [disable-fast-path]
+  <candidate-source-path>
 ```
 
 ### Positional arguments
@@ -112,8 +118,6 @@ java -cp bin PostAutoFFinder.AutoOffTargetSearchAlign \
 12. `allow-PAM-edits`: `true` to allow edits in the PAM, otherwise `false`.
 13. `candidate-source-path`: path interpreted according to the selected
     candidate source.
-14. `disable-fast-path` (optional): `true` to always use the memoized
-    dynamic-programming reconstruction; defaults to `false`.
 
 Boolean arguments are case-sensitive and should be written as `true` or
 `false`.
@@ -178,6 +182,64 @@ For example:
 
 Missing chromosome/strand files are skipped. Candidate positions are relative
 to the corresponding forward or reverse-complement split sequence.
+
+### Stomata GPU candidate generation
+
+The vendored Stomata source includes the changes used for the GPU stage-1
+experiments:
+
+- batch-mode propagation of `--no-deduplicate`;
+- explicit failure instead of silent truncation when a Myers/Levenshtein GPU
+  hit buffer fills;
+- direct per-chromosome `endPosition:guideID` output for PostAutoFFinder; and
+- removal of synthetic trailing separator bases from candidate output.
+
+Build it from the repository root:
+
+```bash
+cmake -S Stomata -B Stomata/build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CUDA_ARCHITECTURES=<gpu-architecture>
+cmake --build Stomata/build -j"$(nproc)"
+```
+
+For one batch search, create separate Stomata indexes for the forward and
+reverse-complement chromosome FASTAs, then run the binary once per index:
+
+```bash
+Stomata/build/src/stomata \
+  --genome forward.fa.st \
+  --spacer-file guides.tsv \
+  --threshold 6 \
+  --distance-mode levenshtein \
+  --strand plus \
+  --no-deduplicate \
+  --no-compute-mismatches \
+  --no-scores \
+  --no-treat-u-as-t \
+  --autoofftarget-output-dir candidates \
+  --autoofftarget-trim-trailing 7
+```
+
+The full benchmark runner is
+[`Stomata/run_stomata_stage1.sh`](Stomata/run_stomata_stage1.sh). It prepares
+the forward and reverse-complement indexes, runs the edit-distance and
+guide-count experiments, records timing and memory measurements, and writes
+candidate directories consumable by PostAutoFFinder. The exact guide subsets
+are in [`Stomata/benchmark_guides/`](Stomata/benchmark_guides/).
+
+Configure its input chromosome directories through environment variables:
+
+```bash
+HG38_FORWARD_DIR=/data/hg38_split \
+HG38_REVERSE_DIR=/data/hg38_split_rc \
+STOMATA_OUTPUT_PARENT=/data/results \
+Stomata/run_stomata_stage1.sh hg38
+```
+
+For CHM13, use `CHM13_FORWARD_DIR` and `CHM13_REVERSE_DIR`. Pass `all` to run
+both assemblies. See [`Stomata/LOCAL_CHANGES.md`](Stomata/LOCAL_CHANGES.md)
+for the implementation rationale and upstream provenance.
 
 ### Raw ReLev binary captures
 

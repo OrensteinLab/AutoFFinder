@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use Stomata, please cite it as below."
+title: "Stomata: GPU-accelerated exhaustive CRISPR off-target search"
+type: software
+authors:
+  - given-names: Danny
+    family-names: Simpson
+    affiliation: "New York Genome Center"
+  - given-names: Neville E.
+    family-names: Sanjana
+    affiliation: "New York Genome Center"
+  - given-names: Tuuli
+    family-names: Lappalainen
+    affiliation: "New York Genome Center"
+license: MIT
+version: 0.10.0
+date-released: 2026-05-06
+repository-code: https://github.com/simpsondl/stomata
+keywords:
+  - CRISPR
+  - off-target
+  - GPU
+  - bioinformatics
+  - guide RNA

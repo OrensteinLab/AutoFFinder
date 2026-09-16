@@ -44,9 +44,6 @@ public class AutoOffTargetSearchAlign {
     private static int MAX_BULGES = 1;
     private static int EFFECTIVE_MAX_EDIT_WITH_BULGE = Math.min(MAX_EDITS, MAX_MISMATCHES_WITH_BULGES + MAX_BULGES);
     private static boolean ALLOW_PAM_EDITS = false;
-    // when true, skips both the 0-bulge mismatch-only scan and the 1-bulge fast scan,
-    // always falling through to the DP + memoized traceback regardless of MAX_BULGES
-    private static boolean DISABLE_FAST_PATH = false;
     private static final int TASKS_PER_THREAD = 4;
     private static final ThreadLocal<int[][]> sharedDpMatrix =
             ThreadLocal.withInitial(() -> new int[60][60]);
@@ -87,10 +84,6 @@ public class AutoOffTargetSearchAlign {
 
     public static void setAllowPamEdits(boolean value) {
         ALLOW_PAM_EDITS = value;
-    }
-
-    public static void setDisableFastPath(boolean value) {
-        DISABLE_FAST_PATH = value;
     }
 
     /**
@@ -201,7 +194,7 @@ public class AutoOffTargetSearchAlign {
         String target, String text, boolean allowNsInText, String targetPamSuffix, String textPamSuffix) {
         int targetLen = target.length();
         int textLen = text.length();
-        if (!DISABLE_FAST_PATH && MAX_BULGES <= 1) {
+        if (MAX_BULGES <= 1) {
             SingleBulgeResult result = findSingleBulgeAlignment(
                     target, text, allowNsInText, targetPamSuffix, textPamSuffix);
             if (!result.ambiguous) {
@@ -1117,8 +1110,6 @@ public class AutoOffTargetSearchAlign {
             AutoOffTargetSearchAlign.setNumThreads(Integer.parseInt(args[7]));
             AutoOffTargetSearchAlign.setSiteWindowSize(Integer.parseInt(args[9]));
             AutoOffTargetSearchAlign.setAllowPamEdits(args[11].equals("true"));
-            // optional trailing arg (defaults to false) to disable the single-bulge fast path
-            AutoOffTargetSearchAlign.setDisableFastPath(args.length > 13 && args[13].equals("true"));
         }
     }
     
@@ -1287,12 +1278,12 @@ public class AutoOffTargetSearchAlign {
     public static void main(String[] args) {
         Instant start = Instant.now();
 
-        if (args.length < 13 || args.length > 14) {
+        if (args.length != 13) {
             System.err.println(
                     "Usage: AutoOffTargetSearchAlign <genome-fasta> <guide-file-or-sequence> "
                             + "<output-prefix> <maxE> <maxM> <maxMB> <maxB> <threads> "
                             + "<best-in-window> <best-window-size> <PAM> <allow-PAM-edits> "
-                            + "<candidate-source-path> [disable-fast-path]");
+                            + "<candidate-source-path>");
             System.exit(2);
         }
         
