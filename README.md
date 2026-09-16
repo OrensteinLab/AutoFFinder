@@ -303,15 +303,25 @@ When binary mode is used, PostAutoFFinder prints separate timings for:
 ### Live FPGA adapter (advanced)
 
 The `fpga` candidate source invokes ReLev through the `relev_jni` native
-interface:
+interface. A fresh clone includes an older prebuilt `automata.hw.xclbin`, but
+that image does not contain the repeated-invocation reset needed when Java
+processes successive chromosomes. **Rebuild the FPGA image from source before
+using this mode.**
+
+From the repository root, after loading the Vitis and XRT environments:
 
 ```bash
 export JAVA_HOME=/path/to/jdk
+make -C ReLev/fpga automata
+make -C ReLev/fpga xclbin
 make -C ReLev/fpga jni
 ```
 
-This creates `ReLev/fpga/librelev_jni.so`. Then run PostAutoFFinder with the
-JNI library and the ReLev FPGA image:
+These commands create the updated `ReLev/fpga/automata.hw.xclbin` and
+`ReLev/fpga/librelev_jni.so`. Building only the JNI library is insufficient
+because the checked-in bitstream was generated from the original kernel.
+
+Then run PostAutoFFinder with absolute paths to both artifacts:
 
 ```bash
 java \
@@ -323,12 +333,53 @@ java \
   6 6 4 2 32 false 50 NGG false unused
 ```
 
-This mode requires exactly 128 guides and an edit-distance threshold from 0 to
-6. ReLev targets the AMD Alveo U280 by default and requires the XRT and Vitis
-environment described in [`ReLev/README.md`](ReLev/README.md). Other FPGA
-platforms require an appropriate platform path and memory mapping. Omit
-`relev.nativeLibrary` only when `librelev_jni` is already available through
-`java.library.path`.
+#### Repository-specific restrictions
+
+- **FPGA platform:** The Makefile and connectivity configuration target an AMD
+  Alveo U280 using HBM. The included `.xclbin` cannot run on another FPGA.
+  Supporting another card requires changing `DEVICE`, adapting
+  `ReLev/fpga/HBM_connectivity.cfg` for that card's memory resources, and
+  rebuilding the kernel and bitstream.
+- **Installed U280 platform path:** The Makefile contains the platform path used
+  by the original system. If the installed U280 platform has another path,
+  pass it explicitly:
+
+  ```bash
+  make -C ReLev/fpga \
+    DEVICE=/opt/xilinx/platforms/<installed-u280-platform>/<platform>.xpfm \
+    automata xclbin
+  ```
+
+- **Device selection:** The JNI code opens XRT device index `0`. If the U280 is
+  not device 0, change the index in
+  `ReLev/fpga/host/relev_jni.cpp` and rebuild `librelev_jni.so`.
+- **Guide count:** The current FPGA image requires exactly 128 non-empty guide
+  lines. The included `sgRNAs.txt` satisfies this requirement.
+- **Guide encoding:** ReLev reads the first 20 symbols of every guide and
+  appends `TGG` internally. Supporting another PAM encoding requires changing
+  the ReLev host/kernel configuration and rebuilding.
+- **Edit distance:** The FPGA implementation accepts thresholds from 0 through
+  6.
+- **Execution model:** AutoFFinder creates forward and reverse-complement
+  chromosome files and invokes the FPGA once per chromosome and strand. The
+  raw FPGA records are passed directly to Java; no intermediate candidate file
+  is needed.
+
+#### Current limitations
+
+- The FPGA output buffer is sized from the chromosome input. The kernel does
+  not expose an explicit output-capacity guard, so an unusually dense match set
+  can exceed the allocated output buffer.
+- ReLev also processes the zero padding used to align each input to a 64-byte
+  transfer. The JNI adapter does not currently remove candidates produced only
+  from this trailing padding.
+- This JNI path has not been executed in this repository checkout because no
+  U280/XRT/Vitis environment is available here. It should be validated once on
+  the target U280 system before relying on a full-genome result.
+
+See [`ReLev/README.md`](ReLev/README.md) for the ReLev-specific build details.
+Omit `relev.nativeLibrary` only when `librelev_jni` is already discoverable
+through `java.library.path`.
 
 ## Output
 
