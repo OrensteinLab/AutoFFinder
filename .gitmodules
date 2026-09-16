@@ -1,3 +1,4 @@
 [submodule "ReLev"]
 	path = ReLev
-	url = https://github.com/tjt7a/ReLev_Artifact.git
+	url = https://github.com/ofiryaish/ReLev_Artifact.git
+	branch = autoffinder-jni-integration

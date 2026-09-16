@@ -306,19 +306,29 @@ The `fpga` candidate source invokes ReLev through the `relev_jni` native
 interface:
 
 ```bash
+export JAVA_HOME=/path/to/jdk
+make -C ReLev/fpga jni
+```
+
+This creates `ReLev/fpga/librelev_jni.so`. Then run PostAutoFFinder with the
+JNI library and the ReLev FPGA image:
+
+```bash
 java \
   -Dautoffinder.candidateSource=fpga \
-  -Drelev.xclbin=/path/to/relev.xclbin \
-  -Drelev.nativeLibrary=/absolute/path/to/librelev_jni.so \
+  -Drelev.xclbin=/absolute/path/to/ReLev/fpga/automata.hw.xclbin \
+  -Drelev.nativeLibrary=/absolute/path/to/ReLev/fpga/librelev_jni.so \
   -cp bin PostAutoFFinder.AutoOffTargetSearchAlign \
   genome.fa sgRNAs.txt results/run \
   6 6 4 2 32 false 50 NGG false unused
 ```
 
 This mode requires exactly 128 guides and an edit-distance threshold from 0 to
-6. The JNI implementation and platform-specific FPGA runtime build are not
-included in this repository; omit `relev.nativeLibrary` only when
-`librelev_jni` is already available through `java.library.path`.
+6. ReLev targets the AMD Alveo U280 by default and requires the XRT and Vitis
+environment described in [`ReLev/README.md`](ReLev/README.md). Other FPGA
+platforms require an appropriate platform path and memory mapping. Omit
+`relev.nativeLibrary` only when `librelev_jni` is already available through
+`java.library.path`.
 
 ## Output
 
