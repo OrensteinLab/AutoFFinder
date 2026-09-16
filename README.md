@@ -358,9 +358,9 @@ java \
 - **Guide encoding:** ReLev reads the first 20 symbols of every guide and
   appends the SpCas9 PAM `NGG`; the FPGA automaton treats `N` as matching any
   `A`, `C`, `G`, or `T`. A reference-genome `N` does not satisfy this wildcard
-  and, in the current automaton, interrupts the active match path rather than
-  being counted as one mismatch. Supporting another PAM requires changing the
-  ReLev host/kernel configuration and rebuilding.
+  and instead consumes one edit through the automaton's mismatch transitions.
+  Supporting another PAM requires changing the ReLev host/kernel configuration
+  and rebuilding.
 - **Edit distance:** The FPGA implementation accepts thresholds from 0 through
   6.
 - **Execution model:** AutoFFinder creates forward and reverse-complement
