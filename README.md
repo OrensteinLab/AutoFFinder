@@ -356,8 +356,9 @@ java \
 - **Guide count:** The current FPGA image requires exactly 128 non-empty guide
   lines. The included `sgRNAs.txt` satisfies this requirement.
 - **Guide encoding:** ReLev reads the first 20 symbols of every guide and
-  appends `TGG` internally. Supporting another PAM encoding requires changing
-  the ReLev host/kernel configuration and rebuilding.
+  appends the SpCas9 PAM `NGG`; the FPGA automaton treats `N` as matching any
+  nucleotide. Supporting another PAM requires changing the ReLev host/kernel
+  configuration and rebuilding.
 - **Edit distance:** The FPGA implementation accepts thresholds from 0 through
   6.
 - **Execution model:** AutoFFinder creates forward and reverse-complement
